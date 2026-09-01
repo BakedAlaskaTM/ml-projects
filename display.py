@@ -33,7 +33,7 @@ class HeaderWidget(QWidget):
         layout.addWidget(self.project_title_input)
 
 class CurrentlySelectedWidget(QFrame):
-    item_removed_signal = pyqtSignal(str)  # Emits track_id when red 'X' clicked
+    item_removed_signal = pyqtSignal(int)  # Emits track_id when red 'X' clicked
 
     def __init__(self):
         super().__init__()
@@ -87,7 +87,7 @@ class CurrentlySelectedWidget(QFrame):
             elided_text = metrics.elidedText(track_name, Qt.TextElideMode.ElideRight, 180)
             name_lbl.setText(elided_text)
 
-            id_lbl = QLabel(track_id)
+            id_lbl = QLabel(str(track_id))
             id_lbl.setFixedWidth(120)
             id_lbl.setStyleSheet("font-size: 16px; color: #555;")
             id_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -104,8 +104,9 @@ class CurrentlySelectedWidget(QFrame):
 
 class SearchResultsWidget(QFrame):
     search_triggered = pyqtSignal(str)
-    checkbox_toggled = pyqtSignal(str, str, bool)  # track_id, track_name, is_checked
+    checkbox_toggled = pyqtSignal(int, str, bool)  # track_id, track_name, is_checked
     page_changed = pyqtSignal(int) # +1 for next page, -1 for prev page
+    cell_selected = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
@@ -211,6 +212,7 @@ class SearchResultsWidget(QFrame):
     def _on_cell_clicked(self, row: int, column: int):
         """Handles Shift+Click range checking when clicking the checkbox column."""
         if column != 0:
+            self._highlight_row(row)
             return
 
         modifiers = QApplication.keyboardModifiers()
@@ -230,6 +232,14 @@ class SearchResultsWidget(QFrame):
             self.table.blockSignals(False)
 
         self.last_clicked_row = row
+
+    def _highlight_row(self, row: int):
+        track_info = {
+            "TrackName": self.table.item(row, 1).text(),
+            "AuthorName": self.table.item(row, 2).text(),
+            "AuthorTime": self.table.item(row, 3).text()
+        }
+        self.cell_selected.emit(track_info)
 
     def _on_item_changed(self, item: QTableWidgetItem):
         """Fires when a single checkbox is checked or unchecked."""
@@ -253,24 +263,27 @@ class SearchResultsWidget(QFrame):
         else:
             self.checkbox_toggled.emit(track["TrackId"], track["TrackName"], is_checked)
 
-    def set_row_checkbox(self, track_id: str, checked: bool):
+    def set_row_checkbox(self, track_id: int, checked: bool):
         """Updates row checkbox state without emitting signals repeatedly."""
+        self.table.blockSignals(True)
+    
+        target_state = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
+        
         for row in range(self.table.rowCount()):
             id_item = self.table.item(row, 4)
-            if id_item and id_item.text() == track_id:
-                container = self.table.cellWidget(row, 0)
-                if container:
-                    chk = container.findChild(QCheckBox)
-                    if chk:
-                        chk.blockSignals(True)
-                        chk.setChecked(checked)
-                        chk.blockSignals(False)
+            if id_item and id_item.text().isdigit() and int(id_item.text()) == track_id:
+                chk_item = self.table.item(row, 0)
+                if chk_item:
+                    chk_item.setCheckState(target_state)
+                break
+                
+        self.table.blockSignals(False)
 
 class FiltersWidget(QFrame):
     def __init__(self):
         super().__init__()
         self.setFixedWidth(440)
-        self.setFixedHeight(810)
+        self.setFixedHeight(500)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
@@ -298,10 +311,10 @@ class FiltersWidget(QFrame):
 
         filter_frame = QFrame()
         filter_frame.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px")
-        filter_frame.setFixedHeight(740)
+        filter_frame.setFixedHeight(410)
         filter_layout = QVBoxLayout(filter_frame)
         filter_layout.setContentsMargins(20, 20, 20, 20)
-        filter_layout.setSpacing(30)
+        filter_layout.setSpacing(20)
 
         title = QLabel("Filters")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -323,7 +336,7 @@ class FiltersWidget(QFrame):
 
         for label_text, widget in fields:
             input_layout = QVBoxLayout()
-            input_layout.setSpacing(12)
+            input_layout.setSpacing(8)
             lbl = QLabel(label_text)
             lbl.setStyleSheet("border: none; font-size: 16px;")
             input_layout.addWidget(lbl)
@@ -343,6 +356,55 @@ class FiltersWidget(QFrame):
             "id": self.track_ids.text().strip(),
             "replaysby": self.replays_by_id.text().strip()
         }
+
+class SelectedMapInfoWidget(QFrame):
+    def __init__(self):
+        super().__init__()
+        self.setFixedWidth(440)
+        self.setFixedHeight(290)
+        self.setContentsMargins(0, 0, 0, 0)
+
+        info_frame = QFrame(self)
+        info_frame.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px")
+        info_frame.setFixedWidth(440)
+        info_frame.setFixedHeight(290)
+        info_layout = QVBoxLayout(info_frame)
+        info_layout.setContentsMargins(20, 20, 20, 20)
+        info_layout.setSpacing(20)
+
+        title = QLabel("Selected Map Information")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("font-size: 22px; font-weight: bold; border: none; margin-bottom: 10px")
+        info_layout.addWidget(title)
+
+        self.track_name = QLabel()
+        self.author_name = QLabel()
+        self.author_time = QLabel()
+
+        fields = [
+            ("Name", self.track_name),
+            ("Author", self.author_name),
+            ("AT", self.author_time),
+        ]
+
+        for label_text, widget in fields:
+            widget.setText(f"{label_text} :")
+            widget.setStyleSheet("border: none")
+            info_layout.addWidget(widget)
+
+        info_layout.addStretch()
+
+    def update_label_text(self, track_info: dict):
+        fields = [
+            ("Name", track_info["TrackName"], self.track_name),
+            ("Author", track_info["AuthorName"], self.author_name),
+            ("AT", track_info["AuthorTime"], self.author_time),
+        ]
+
+        for label_text, info_text, widget in fields:
+            widget.setText(f"{label_text} : {info_text}")
+
+
 
 class BottomActionsWidget(QWidget):
     def __init__(self):
@@ -369,11 +431,12 @@ class MainWindow(QMainWindow):
 
         # Global Selection State: {track_id: track_name}
         self.selected_tracks = {}
-        self.current_page = 0
-        self.has_more_data = False
-        self.paging_ids = deque()
+        self.current_page = 0 # Page pointer
+        self.has_more_data = False # More data to be collected from TMX
+        self.final_id = None # Last row ID for pagination
         self.query_dict = {}
         self.search_mode = tmx.Category.TRACKS
+        self.results = [] # Cache search results for faster pagination
 
         # Root Central Layout
         central_widget = QWidget()
@@ -388,19 +451,27 @@ class MainWindow(QMainWindow):
         self.selected_panel = CurrentlySelectedWidget()
         self.results_panel = SearchResultsWidget()
         self.filters_panel = FiltersWidget()
+        self.selected_map_info = SelectedMapInfoWidget()
         self.bottom_actions = BottomActionsWidget()
+
+        # Assembly middle right content
+        middle_right_col = QVBoxLayout()
+        middle_right_col.setSpacing(10)
+        middle_right_col.addWidget(self.filters_panel)
+        middle_right_col.addWidget(self.selected_map_info)
 
         # Assembly Middle Content Row
         middle_row = QHBoxLayout()
         middle_row.setSpacing(20)
         middle_row.addWidget(self.selected_panel)
         middle_row.addWidget(self.results_panel, stretch=1)
-        middle_row.addWidget(self.filters_panel)
+        middle_row.addLayout(middle_right_col)
 
         self.results_panel.search_triggered.connect(self.handle_search)
         self.results_panel.checkbox_toggled.connect(self.handle_table_toggle)
         self.results_panel.page_changed.connect(self.handle_page_change)
         self.selected_panel.item_removed_signal.connect(self.handle_left_panel_remove)
+        self.results_panel.cell_selected.connect(self.display_current_map_info)
         self.results_panel.prev_btn.setEnabled(self.current_page > 0)
         self.results_panel.next_btn.setEnabled(self.has_more_data)
 
@@ -410,17 +481,12 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.bottom_actions)
 
         self.selected_panel.refresh_list(self.selected_tracks)
-        self.load_mock_data()
+        #self.load_mock_data()
 
     def handle_search(self, query_text: str):
         """Action triggers ONLY on Enter press in search input."""
         filter_states = self.filters_panel.get_filter_states()
         self.search_mode = tmx.Category.TRACKS if self.filters_panel.tracks_radio.isChecked() else tmx.Category.USERS
-        
-        print("\n--- SEARCH EXECUTED ---")
-        print(f"Mode: {self.search_mode.name}")
-        print(f"Query: '{query_text}'")
-        print(f"Filters: {filter_states}")
         self.query_dict = {"name": query_text, "count": RESULT_COUNT*MAX_CACHE_PAGES, "order1": 2}
         for param, value in filter_states.items():
             if value == "":
@@ -428,19 +494,21 @@ class MainWindow(QMainWindow):
             self.query_dict[param] = value
         results = tmx.search(session, self.search_mode, self.query_dict)
         self.has_more_data = results["More"]
-        results = tmx.flatten_results(results["Results"], self.search_mode)
+        self.results = tmx.flatten_results(results["Results"], self.search_mode)
+        if len(self.results) > 0:
+            self.final_id = self.results[-1]["TrackId"]
         self.current_page = 0
-        self.results_panel.next_btn.setEnabled(False) # Change to depend on results length and current page
-        self.results_panel.populate_table(results, set(self.selected_tracks.keys()))
+        self.results_panel.next_btn.setEnabled((self.current_page+1)*RESULT_COUNT < len(self.results) or self.has_more_data)
+        self.results_panel.populate_table(self.results[self.current_page*RESULT_COUNT:(self.current_page+1)*RESULT_COUNT], set(self.selected_tracks.keys()))
 
-    def handle_table_toggle(self, track_id: str, track_name: str, is_checked: bool):
+    def handle_table_toggle(self, track_id: int, track_name: str, is_checked: bool):
         if is_checked:
             self.selected_tracks[track_id] = track_name
         else:
             self.selected_tracks.pop(track_id, None)
         self.selected_panel.refresh_list(self.selected_tracks)
 
-    def handle_left_panel_remove(self, track_id: str):
+    def handle_left_panel_remove(self, track_id: int):
         self.selected_tracks.pop(track_id, None)
         self.selected_panel.refresh_list(self.selected_tracks)
         self.results_panel.set_row_checkbox(track_id, False)
@@ -448,28 +516,27 @@ class MainWindow(QMainWindow):
     def handle_page_change(self, dir: int):
         self.current_page = max(0, self.current_page + dir)
 
-        # Do the actual search again as well
-        if dir == -1:
-            self.paging_ids.pop()
-            self.paging_ids.pop()
-        if len(self.paging_ids) > 0:
-            after_id = self.paging_ids[-1]
-        else:
-            after_id = ""
-        self.query_dict["after"] = after_id
-        results = tmx.search(session, self.search_mode, self.query_dict)
-        self.has_more_data = results["More"]
-        results = tmx.flatten_results(results["Results"], self.search_mode)
+        # Fully rewrite pagination
+        # Only perform tmx query if on last cached page
+        if (self.current_page+1)*RESULT_COUNT >= len(self.results) and self.has_more_data:
+            self.query_dict["after"] = "" # Store final id
+            results = tmx.search(session, self.search_mode, self.query_dict)
+            self.has_more_data = results["More"]
+            self.results += tmx.flatten_results(results["Results"], self.search_mode)
 
-        self.paging_ids.append(results[-1]["TrackId"])
-        self.results_panel.populate_table(results, set(self.selected_tracks.keys()))
+        # Update display
+        self.results_panel.populate_table(self.results[self.current_page*RESULT_COUNT:(self.current_page+1)*RESULT_COUNT], set(self.selected_tracks.keys()))
 
         self.results_panel.prev_btn.setEnabled(self.current_page > 0)
-        self.results_panel.next_btn.setEnabled(self.has_more_data)
+        self.results_panel.next_btn.setEnabled((self.current_page+1)*RESULT_COUNT < len(self.results) or self.has_more_data)
+
+    def display_current_map_info(self, track_info: dict):
+        self.selected_map_info.update_label_text(track_info)
+
 
     def load_mock_data(self):
         mock_results = [
-            {"TrackName": "Track #1", "Authors": [{"UserId": "123808", "Name": "Author 1"}], "AuthorTime": "30.52", "TrackId": "1582819", "UpdatedAt": "2022-02-05T"},
+            {"TrackName": "Track #1", "Authors": [{"UserId": 123808, "Name": "Author 1"}], "AuthorTime": 30520, "TrackId": 1582819, "UpdatedAt": "2022-02-05T"},
         ]
         self.results_panel.populate_table(mock_results, set(self.selected_tracks.keys()))
 
