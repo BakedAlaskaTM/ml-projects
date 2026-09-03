@@ -1,14 +1,19 @@
 import sys
-from collections import deque
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QLabel, QFrame, QScrollArea, QTableWidget,
-    QTableWidgetItem, QHeaderView, QCheckBox, QButtonGroup, QAbstractItemView
+    QTableWidgetItem, QHeaderView, QCheckBox, QButtonGroup, QAbstractItemView, 
+    QFileDialog
 )
+from supabase import create_client, Client
+from dotenv import load_dotenv
 from styles import GLOBAL_STYLE
+from utils import *
 import tmx
+import api
 import requests
+import os
 
 RESULT_COUNT = 21
 MAX_CACHE_PAGES = 1000 // RESULT_COUNT # RESULT_COUNT * CACHE_PAGES <= 1000
@@ -24,7 +29,7 @@ class HeaderWidget(QWidget):
         self.back_btn.setFixedWidth(440)
         self.back_btn.setFixedHeight(100)
 
-        self.project_title_input = QLineEdit("Default Project")
+        self.project_title_input = QLineEdit()
         self.project_title_input.setStyleSheet("font-size: 24px; font-weight: bold; padding: 10px;")
         self.project_title_input.setFixedWidth(1420)
         self.project_title_input.setFixedHeight(100)
@@ -66,14 +71,15 @@ class CurrentlySelectedWidget(QFrame):
         main_layout.addWidget(self.scroll_area)
 
     def refresh_list(self, selected_tracks: dict):
-        """Rebuilds list from state dictionary {track_id: track_name}."""
+        """Rebuilds list from state dictionary {track_id: track_info (dict)}."""
         # Clear existing items
         while self.items_layout.count() > 1:
             item = self.items_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        for track_id, track_name in selected_tracks.items():
+        for track_id, track_info in selected_tracks.items():
+            track_name = track_info["TrackName"]
             row_frame = QFrame()
             row_frame.setStyleSheet("border: none;")
             row_layout = QHBoxLayout(row_frame)
@@ -201,7 +207,7 @@ class SearchResultsWidget(QFrame):
             self.table.setItem(row_idx, 1, QTableWidgetItem(track["TrackName"]))
             self.table.setItem(row_idx, 2, QTableWidgetItem(track["Authors"][0]["Name"]))
             
-            at_item = QTableWidgetItem(str(track["AuthorTime"]))
+            at_item = QTableWidgetItem(format_time(track["AuthorTime"]))
             self.table.setItem(row_idx, 3, at_item)
             
             self.table.setItem(row_idx, 4, QTableWidgetItem(str(track["TrackId"])))
@@ -404,9 +410,9 @@ class SelectedMapInfoWidget(QFrame):
         for label_text, info_text, widget in fields:
             widget.setText(f"{label_text} : {info_text}")
 
-
-
 class BottomActionsWidget(QWidget):
+    save_button_pressed = pyqtSignal()
+    export_button_pressed = pyqtSignal()
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout(self)
@@ -419,8 +425,11 @@ class BottomActionsWidget(QWidget):
         self.save_btn = QPushButton("Save")
         self.save_btn.setStyleSheet("font-size: 26px; font-weight: bold; padding: 15px;")
 
+        self.export_btn.clicked.connect(lambda: self.export_button_pressed.emit())
+        self.save_btn.clicked.connect(lambda: self.save_button_pressed.emit())
         layout.addWidget(self.export_btn, stretch=1)
         layout.addWidget(self.save_btn, stretch=1)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -429,22 +438,42 @@ class MainWindow(QMainWindow):
         self.resize(1920, 1080)
         self.setStyleSheet(GLOBAL_STYLE)
 
+        # Get relevant info from DB
+        project_info = api.get_project_by_slug(supabase, "TRePcqMK")
+        if project_info is not None:
+            project_info = project_info[0]
+
+        selected_tracks_rows = api.get_tracks_by_project_slug(supabase, "TRePcqMK")
+
         # Global Selection State: {track_id: track_name}
-        self.selected_tracks = {}
+        self.selected_tracks = construct_selected_tracks(selected_tracks_rows) if selected_tracks_rows else {}
         self.current_page = 0 # Page pointer
         self.has_more_data = False # More data to be collected from TMX
         self.final_id = None # Last row ID for pagination
         self.query_dict = {}
         self.search_mode = tmx.Category.TRACKS
         self.results = [] # Cache search results for faster pagination
+        self.stored_track_info = {}
+        self.project_slug = project_info["slug"] if project_info else ""
+        self.project_name = project_info["name"] if project_info else "Default project"
 
         # Root Central Layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        root_layout = QVBoxLayout(central_widget)
+        outer_layout = QHBoxLayout(central_widget)
+        outer_layout.addStretch()
+
+        main_content = QWidget()
+        main_content.setFixedWidth(1920)
+        main_content.setFixedHeight(1080)
+        root_layout = QVBoxLayout(main_content)
         root_layout.setContentsMargins(20, 20, 20, 20)
         root_layout.setSpacing(20)
+
+        outer_layout.addWidget(main_content)
+        outer_layout.addStretch()
+        
 
         # Instantiate Component Widgets
         self.header = HeaderWidget()
@@ -472,6 +501,8 @@ class MainWindow(QMainWindow):
         self.results_panel.page_changed.connect(self.handle_page_change)
         self.selected_panel.item_removed_signal.connect(self.handle_left_panel_remove)
         self.results_panel.cell_selected.connect(self.display_current_map_info)
+        self.bottom_actions.export_button_pressed.connect(self.handle_export)
+        self.bottom_actions.save_button_pressed.connect(self.handle_save)
         self.results_panel.prev_btn.setEnabled(self.current_page > 0)
         self.results_panel.next_btn.setEnabled(self.has_more_data)
 
@@ -481,6 +512,7 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.bottom_actions)
 
         self.selected_panel.refresh_list(self.selected_tracks)
+        self.header.project_title_input.setText(self.project_name)
         #self.load_mock_data()
 
     def handle_search(self, query_text: str):
@@ -501,9 +533,9 @@ class MainWindow(QMainWindow):
         self.results_panel.next_btn.setEnabled((self.current_page+1)*RESULT_COUNT < len(self.results) or self.has_more_data)
         self.results_panel.populate_table(self.results[self.current_page*RESULT_COUNT:(self.current_page+1)*RESULT_COUNT], set(self.selected_tracks.keys()))
 
-    def handle_table_toggle(self, track_id: int, track_name: str, is_checked: bool):
+    def handle_table_toggle(self, track_id: int, is_checked: bool):
         if is_checked:
-            self.selected_tracks[track_id] = track_name
+            self.selected_tracks[track_id] = next(track_info for track_info in self.results if track_info["TrackId"] == track_id)
         else:
             self.selected_tracks.pop(track_id, None)
         self.selected_panel.refresh_list(self.selected_tracks)
@@ -533,6 +565,27 @@ class MainWindow(QMainWindow):
     def display_current_map_info(self, track_info: dict):
         self.selected_map_info.update_label_text(track_info)
 
+    def handle_export(self):
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save File As", "", "JSON Files (*.json)")
+        if save_path is None:
+            return
+        export_data = {}
+        export_data["ProjectName"] = self.header.project_title_input.text()
+        export_data["ProjectSlug"] = self.project_slug
+        export_data["SelectedTracks"] = self.selected_tracks
+        write_json(save_path, export_data)
+        
+    
+    def handle_save(self):
+        print("Starting save")
+        project_data = flatten_project_data(self.header.project_title_input.text(), self.project_slug)
+        print(project_data)
+        api.upsert_projects(supabase, project_data)
+        map_data = flatten_selected_tracks(self.selected_tracks, self.project_slug)
+        print(map_data)
+        api.upsert_maps(supabase, map_data)
+        print("Save complete")
+        
 
     def load_mock_data(self):
         mock_results = [
@@ -541,9 +594,18 @@ class MainWindow(QMainWindow):
         self.results_panel.populate_table(mock_results, set(self.selected_tracks.keys()))
 
 if __name__ == "__main__":
+    # Load variables from .env into system environment
+    load_dotenv()
+
+    # Replace with your actual project keys from Supabase dashboard
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_SECRET_KEY") # Use service role if bypasses RLS is needed for backend
+
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     session = requests.Session()
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
     session.close()
+    

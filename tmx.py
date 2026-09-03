@@ -1,5 +1,6 @@
 from enum import Enum, auto
 import requests
+from urllib.parse import quote_plus
 
 TRACKS_INPUT_PARAMETERS = ["id", "uid", "name", "author", "authoruserid", "replaysby", "count"]
 TRACKS_OUTPUT_FIELDS = ["TrackId", "TrackName", "UId", "AuthorTime", "UpdatedAt", "Authors%5B%5D"]
@@ -12,7 +13,7 @@ class Category(Enum):
 
 def search_tracks(session: requests.Session, query: dict):
     url_base = "https://tmnf.exchange/api/tracks?"
-    params = "&".join([f"{param}={value}" for param, value in query.items()])
+    params = "&".join([f"{param}={quote_plus(str(value))}" for param, value in query.items()])
     params += f"&fields={'%2C'.join(TRACKS_OUTPUT_FIELDS)}"
     response = session.get(f"{url_base}{params}")
     if response.status_code != 200:

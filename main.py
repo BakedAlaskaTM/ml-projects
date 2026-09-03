@@ -5,6 +5,7 @@ import time as T
 from postgrest.exceptions import APIError
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import api
 
 
 
@@ -18,3 +19,6 @@ if __name__ == "__main__":
     SUPABASE_KEY = os.getenv("SUPABASE_SECRET_KEY") # Use service role if bypasses RLS is needed for backend
 
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    supabase.table("Project").upsert([{"name": "Test", "slug": "Test", "isActive": True}], on_conflict="slug").execute()
+    print(api.get_all_rows(supabase, "Project"))
