@@ -1,5 +1,6 @@
 from postgrest.exceptions import APIError
 from supabase import create_client, Client
+from utils import By
 
 def get_all_rows(client: Client, table_name, columns='*'):
     """
@@ -75,8 +76,8 @@ def get_tracks_by_project_slug(client: Client, slug: str):
         try:
             # Request a specific slice of rows (e.g., 0-999, 1000-1999)
             response = (
-                client.table("Map")
-                .select("*")
+                client.table("ProjectMap")
+                .select("Map(*)")
                 .eq("project_slug", slug)
                 .range(start_index, end_index)
                 .execute()
@@ -106,7 +107,7 @@ def get_tracks_by_project_slug(client: Client, slug: str):
             raise e
             
     print(f"Successfully fetched all {len(all_data)} rows from 'Map'.")
-    return all_data
+    return [row["Map"] for row in all_data]
 
 
 def upsert_projects(client: Client, data: list[dict]):
@@ -121,8 +122,39 @@ def upsert_projects(client: Client, data: list[dict]):
 def upsert_maps(client: Client, data: list[dict]):
     print("Upserting maps")
     try:
-        client.table("Map").upsert(data, on_conflict="uid,project_slug").execute()
+        client.table("Map").upsert(data, on_conflict="uid").execute()
         print("Complete")
+    except APIError as e:
+        print(f"Error code: {e.code}")
+        print(f"Error message: {e.message}")
+
+def upsert_project_map_rows(client: Client, data: list[dict]):
+    try:
+        client.table("ProjectMap").upsert(data, on_conflict="map_uid,project_slug").execute()
+        print("Complete")
+    except APIError as e:
+        print(f"Error code: {e.code}")
+        print(f"Error message: {e.message}")
+
+def delete_project_map_rows(client: Client, by: By.UID | By.PROJECT_SLUG, keys: list, project_slug: str = None):
+    match by:
+        case By.UID:
+            col = "map_uid"
+            if project_slug is None:
+                print("Project slug required when deleting by UID")
+                return
+        case By.PROJECT_SLUG:
+            col = "project_slug"
+        case _:
+            return
+    
+    try:
+        if project_slug is not None:
+            print(f"Deleting some maps from {project_slug}.")
+            client.table("ProjectMap").delete().in_(col, keys).eq("project_slug", project_slug).execute()
+        else:
+            print(f"Deleting all maps from selected projects.")
+            client.table("ProjectMap").delete().in_(col, keys).execute()
     except APIError as e:
         print(f"Error code: {e.code}")
         print(f"Error message: {e.message}")

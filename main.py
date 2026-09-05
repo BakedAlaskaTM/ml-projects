@@ -20,5 +20,4 @@ if __name__ == "__main__":
 
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    supabase.table("Project").upsert([{"name": "Test", "slug": "Test", "isActive": True}], on_conflict="slug").execute()
-    print(api.get_all_rows(supabase, "Project"))
+    print(api.get_all_rows(supabase, "ProjectMap", "*, Map(*), Project(*)"))

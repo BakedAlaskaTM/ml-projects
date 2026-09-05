@@ -38,7 +38,7 @@ class HeaderWidget(QWidget):
         layout.addWidget(self.project_title_input)
 
 class CurrentlySelectedWidget(QFrame):
-    item_removed_signal = pyqtSignal(int)  # Emits track_id when red 'X' clicked
+    item_removed_signal = pyqtSignal(str, int)  # Emits uid, track_id when red 'X' clicked
 
     def __init__(self):
         super().__init__()
@@ -51,10 +51,10 @@ class CurrentlySelectedWidget(QFrame):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
 
-        title = QLabel("Currently Selected")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 20px; font-weight: bold; border: none;")
-        main_layout.addWidget(title)
+        self.title = QLabel("Currently Selected")
+        self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title.setStyleSheet("font-size: 20px; font-weight: bold; border: none;")
+        main_layout.addWidget(self.title)
 
         # Scrollable container
         self.scroll_area = QScrollArea()
@@ -78,8 +78,9 @@ class CurrentlySelectedWidget(QFrame):
             if item.widget():
                 item.widget().deleteLater()
 
-        for track_id, track_info in selected_tracks.items():
+        for uid, track_info in selected_tracks.items():
             track_name = track_info["TrackName"]
+            track_id = track_info["TrackId"]
             row_frame = QFrame()
             row_frame.setStyleSheet("border: none;")
             row_layout = QHBoxLayout(row_frame)
@@ -100,17 +101,18 @@ class CurrentlySelectedWidget(QFrame):
 
             remove_btn = QPushButton("X")
             remove_btn.setObjectName("removeBtn")
-            remove_btn.clicked.connect(lambda _, tid=track_id: self.item_removed_signal.emit(tid))
+            remove_btn.clicked.connect(lambda _, uid=uid, tid=track_id: self.item_removed_signal.emit(uid, tid))
 
             row_layout.addWidget(name_lbl)
             row_layout.addWidget(id_lbl)
             row_layout.addWidget(remove_btn)
 
             self.items_layout.insertWidget(self.items_layout.count() - 1, row_frame)
+        self.title.setText(f"Currently Selected: {len(selected_tracks.keys())}")
 
 class SearchResultsWidget(QFrame):
     search_triggered = pyqtSignal(str)
-    checkbox_toggled = pyqtSignal(int, str, bool)  # track_id, track_name, is_checked
+    checkbox_toggled = pyqtSignal(str, bool)  # uid, track_name, is_checked
     page_changed = pyqtSignal(int) # +1 for next page, -1 for prev page
     cell_selected = pyqtSignal(dict)
 
@@ -234,7 +236,7 @@ class SearchResultsWidget(QFrame):
                 if item:
                     item.setCheckState(target_state)
                     track = item.data(Qt.ItemDataRole.UserRole)
-                    self.checkbox_toggled.emit(track["TrackId"], track["TrackName"], target_state == Qt.CheckState.Checked)
+                    self.checkbox_toggled.emit(track["UId"], target_state == Qt.CheckState.Checked)
             self.table.blockSignals(False)
 
         self.last_clicked_row = row
@@ -264,10 +266,10 @@ class SearchResultsWidget(QFrame):
                 if chk_item:
                     chk_item.setCheckState(item.checkState())
                     t_data = chk_item.data(Qt.ItemDataRole.UserRole)
-                    self.checkbox_toggled.emit(t_data["TrackId"], t_data["TrackName"], is_checked)
+                    self.checkbox_toggled.emit(t_data["UId"], is_checked)
             self.table.blockSignals(False)
         else:
-            self.checkbox_toggled.emit(track["TrackId"], track["TrackName"], is_checked)
+            self.checkbox_toggled.emit(track["UId"], is_checked)
 
     def set_row_checkbox(self, track_id: int, checked: bool):
         """Updates row checkbox state without emitting signals repeatedly."""
@@ -456,6 +458,7 @@ class MainWindow(QMainWindow):
         self.stored_track_info = {}
         self.project_slug = project_info["slug"] if project_info else ""
         self.project_name = project_info["name"] if project_info else "Default project"
+        self.initial_tracks = self.selected_tracks.copy()
 
         # Root Central Layout
         central_widget = QWidget()
@@ -533,22 +536,21 @@ class MainWindow(QMainWindow):
         self.results_panel.next_btn.setEnabled((self.current_page+1)*RESULT_COUNT < len(self.results) or self.has_more_data)
         self.results_panel.populate_table(self.results[self.current_page*RESULT_COUNT:(self.current_page+1)*RESULT_COUNT], set(self.selected_tracks.keys()))
 
-    def handle_table_toggle(self, track_id: int, is_checked: bool):
+    def handle_table_toggle(self, uid: str, is_checked: bool):
         if is_checked:
-            self.selected_tracks[track_id] = next(track_info for track_info in self.results if track_info["TrackId"] == track_id)
+            self.selected_tracks[uid] = next(track_info for track_info in self.results if track_info["UId"] == uid)
         else:
-            self.selected_tracks.pop(track_id, None)
+            self.selected_tracks.pop(uid, None)
         self.selected_panel.refresh_list(self.selected_tracks)
 
-    def handle_left_panel_remove(self, track_id: int):
-        self.selected_tracks.pop(track_id, None)
+    def handle_left_panel_remove(self, uid: str, track_id: int):
+        self.selected_tracks.pop(uid, None)
         self.selected_panel.refresh_list(self.selected_tracks)
         self.results_panel.set_row_checkbox(track_id, False)
 
     def handle_page_change(self, dir: int):
         self.current_page = max(0, self.current_page + dir)
 
-        # Fully rewrite pagination
         # Only perform tmx query if on last cached page
         if (self.current_page+1)*RESULT_COUNT >= len(self.results) and self.has_more_data:
             self.query_dict["after"] = "" # Store final id
@@ -578,13 +580,19 @@ class MainWindow(QMainWindow):
     
     def handle_save(self):
         print("Starting save")
+        removed_uids = set(self.initial_tracks.keys())-set(self.selected_tracks.keys())
+        api.delete_project_map_rows(supabase, By.UID, list(removed_uids), self.project_slug)
+
         project_data = flatten_project_data(self.header.project_title_input.text(), self.project_slug)
-        print(project_data)
         api.upsert_projects(supabase, project_data)
-        map_data = flatten_selected_tracks(self.selected_tracks, self.project_slug)
-        print(map_data)
+        print(self.selected_tracks)
+        map_data = flatten_selected_tracks(self.selected_tracks)
         api.upsert_maps(supabase, map_data)
+
+        project_map_data = construct_project_map_rows(self.selected_tracks.keys(), self.project_slug)
+        api.upsert_project_map_rows(supabase, project_map_data)
         print("Save complete")
+        self.initial_tracks = self.selected_tracks.copy()
         
 
     def load_mock_data(self):
