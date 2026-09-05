@@ -5,7 +5,7 @@ import time as T
 from postgrest.exceptions import APIError
 from supabase import create_client, Client
 from dotenv import load_dotenv
-import api
+from libs import api
 
 
 

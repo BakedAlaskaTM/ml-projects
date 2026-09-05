@@ -1,6 +1,6 @@
 from postgrest.exceptions import APIError
 from supabase import create_client, Client
-from utils import By
+from .utils import By
 
 def get_all_rows(client: Client, table_name, columns='*'):
     """
