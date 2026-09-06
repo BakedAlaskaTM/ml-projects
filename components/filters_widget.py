@@ -8,36 +8,11 @@ class FiltersWidget(QFrame):
     def __init__(self):
         super().__init__()
         self.setFixedWidth(440)
-        self.setFixedHeight(500)
+        self.setFixedHeight(420)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px")
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        self.tracks_radio = QPushButton("Tracks")
-        self.tracks_radio.setFixedHeight(50)
-        self.tracks_radio.setObjectName("tracksRadio")
-        self.tracks_radio.setCheckable(True)
-        self.tracks_radio.setChecked(True)
-
-        self.users_radio = QPushButton("Users")
-        self.users_radio.setFixedHeight(50)
-        self.users_radio.setObjectName("usersRadio")
-        self.users_radio.setCheckable(True)
-
-        self.radio_group = QButtonGroup(self)
-        self.radio_group.addButton(self.tracks_radio)
-        self.radio_group.addButton(self.users_radio)
-
-        radio_layout = QHBoxLayout()
-        radio_layout.setSpacing(20)
-        radio_layout.addWidget(self.tracks_radio)
-        radio_layout.addWidget(self.users_radio)
-
-        filter_frame = QFrame()
-        filter_frame.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px")
-        filter_frame.setFixedHeight(410)
-        filter_layout = QVBoxLayout(filter_frame)
+        filter_layout = QVBoxLayout(self)
         filter_layout.setContentsMargins(20, 20, 20, 20)
         filter_layout.setSpacing(20)
 
@@ -69,9 +44,6 @@ class FiltersWidget(QFrame):
             filter_layout.addLayout(input_layout)
 
         filter_layout.addStretch()
-
-        layout.addLayout(radio_layout)
-        layout.addWidget(filter_frame)
 
     def get_filter_states(self) -> dict:
         """Returns active text values across all filter inputs."""

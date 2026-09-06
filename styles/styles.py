@@ -119,4 +119,57 @@ QTableWidget::item:hover {
 QTableWidget {
     outline: none; /* Removes the dotted focus rectangle around selected cells */
 }
+
+/* Dropdowns (Combobox) */
+/* Base ComboBox Style */
+QComboBox {
+    border: 1px solid black;
+    border-radius: 10px;
+    background-color: white;
+    padding: 10px 35px 10px 20px; /* Extra right padding prevents text from overlapping the arrow */
+    font-weight: bold;
+}
+
+/* Drop-Down Button Container */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border: none;
+    margin-right: 10px; /* Pulls the arrow container away from the right border */
+    font-size: 24px;
+}
+
+/* Down Arrow Icon */
+QComboBox::down-arrow {
+    image: url("assets/down-arrow.svg"); /* Custom arrow SVG */
+    width: 24px;
+    height: 24px;
+}
+
+/* Date edit container and calendar */
+QDateEdit {
+    border: 1px solid #000000;
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 18px;
+    background-color: #ffffff;
+    selection-background-color: #000000;
+    selection-color: #ffffff;
+}
+
+/* Description edit */
+QPlainTextEdit {
+    border: 1px solid #000000;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 18px;
+    background-color: #ffffff;
+    color: #000000;
+    selection-background-color: #000000;
+    selection-color: #ffffff;
+}
+QPlainTextEdit:focus {
+    border: 1.5px solid #000000;
+}
 """

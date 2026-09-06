@@ -7,6 +7,15 @@ class By(Enum):
     UID = auto()
     PROJECT_SLUG = auto()
 
+class ProjectStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    ENDED = "ENDED"
+
+    @classmethod
+    def list_all(cls):
+        return [member.name for member in cls]
+
 def format_time(ms):
     seconds = ms / 1000
     minutes, seconds = divmod(seconds, 60)
@@ -27,8 +36,15 @@ def write_json(filename: str, data):
 def generate_slug(length_bytes: int = 6) -> str:
     return secrets.token_urlsafe(length_bytes)
 
-def flatten_project_data(project_name: str, project_slug: str):
-    return [{"name": project_name, "slug": project_slug, "is_active": True}]
+def flatten_project_data(project_info: dict):
+    return [{
+        "name": project_info["Name"], 
+        "slug": project_info["Slug"], 
+        "is_active": True, 
+        "status": project_info["Status"].value,
+        "started_at": project_info["StartDate"],
+        "description": project_info["Description"]
+        }]
 
 def flatten_selected_tracks(tracks: dict):
     flattened = []

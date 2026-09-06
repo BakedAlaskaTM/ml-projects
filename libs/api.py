@@ -107,7 +107,7 @@ def get_tracks_by_project_slug(client: Client, slug: str):
             raise e
             
     print(f"Successfully fetched all {len(all_data)} rows from 'Map'.")
-    return [row["Map"] for row in all_data]
+    return [row["Map"] for row in all_data] if all_data else None
 
 
 def upsert_projects(client: Client, data: list[dict]):

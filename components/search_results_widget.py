@@ -8,7 +8,7 @@ from libs.utils import format_time
 
 class SearchResultsWidget(QFrame):
     search_triggered = pyqtSignal(str)
-    checkbox_toggled = pyqtSignal(str, bool)  # uid, track_name, is_checked
+    checkbox_toggled = pyqtSignal(str, bool)  # uid, is_checked
     page_changed = pyqtSignal(int) # +1 for next page, -1 for prev page
     cell_selected = pyqtSignal(dict)
 
@@ -138,11 +138,8 @@ class SearchResultsWidget(QFrame):
         self.last_clicked_row = row
 
     def _highlight_row(self, row: int):
-        track_info = {
-            "TrackName": self.table.item(row, 1).text(),
-            "AuthorName": self.table.item(row, 2).text(),
-            "AuthorTime": self.table.item(row, 3).text()
-        }
+        item = self.table.item(row, 0)
+        track_info = item.data(Qt.ItemDataRole.UserRole)
         self.cell_selected.emit(track_info)
 
     def _on_item_changed(self, item: QTableWidgetItem):
