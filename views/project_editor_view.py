@@ -46,22 +46,11 @@ class ProjectEditorView(QWidget):
         self.stored_track_info = {}
         self.initial_tracks = None
 
-        # Root Central Layout
-        central_widget = QWidget(self)
-
-        outer_layout = QHBoxLayout(central_widget)
-        outer_layout.addStretch()
-
-        main_content = QWidget()
-        main_content.setFixedWidth(1920)
-        main_content.setFixedHeight(1080)
-        root_layout = QVBoxLayout(main_content)
+        self.setFixedWidth(1920)
+        self.setFixedHeight(1080)
+        root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(20, 20, 20, 20)
         root_layout.setSpacing(20)
-
-        outer_layout.addWidget(main_content)
-        outer_layout.addStretch()
-        
 
         # Instantiate Component Widgets
         self.header = HeaderWidget()

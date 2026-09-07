@@ -32,9 +32,19 @@ class MainWindow(QMainWindow):
         self.resize(1920, 1080)
         self.setStyleSheet(GLOBAL_STYLE)
 
+        central_widget = QWidget()
+
+        self.setCentralWidget(central_widget)
+        
+        outer_layout = QHBoxLayout(central_widget)
+        outer_layout.addStretch()
+        
         # 1. Create the stack manager
         self.stacked_widget = QStackedWidget()
-        self.setCentralWidget(self.stacked_widget)
+        self.stacked_widget.setFixedWidth(1920)
+        self.stacked_widget.setFixedHeight(1080)
+        outer_layout.addWidget(self.stacked_widget, stretch=1)
+        outer_layout.addStretch()
 
         # 2. Instantiate views
         self.dashboard_page = ProjectsDashboardView(supabase)
@@ -47,6 +57,8 @@ class MainWindow(QMainWindow):
         # 4. Connect routing signals
         self.dashboard_page.project_selected.connect(self.open_editor)
         self.editor_page.back_to_dashboard.connect(self.open_dashboard)
+
+        self.open_dashboard()
     
     def open_editor(self, project_slug: str):
         """Navigates to editor view and passes data."""
@@ -55,6 +67,7 @@ class MainWindow(QMainWindow):
 
     def open_dashboard(self):
         """Swaps back to dashboard view."""
+        self.dashboard_page.load_projects()
         self.stacked_widget.setCurrentWidget(self.dashboard_page)
 
 if __name__ == "__main__":
