@@ -119,10 +119,8 @@ Bug reports and pull requests are welcome. For code changes:
 
 ## License
 
-This repository does not currently include a license. Add a `LICENSE` file
-before publishing or accepting contributions so users know how they may use,
-modify, and redistribute the code.
+This project is licensed under the [MIT License](LICENSE).
 
 [PySide6](https://doc.qt.io/qtforpython-6/) is provided under LGPLv3, GPLv3,
-and commercial licensing options. The license selected for this project must
-also comply with the licenses of its dependencies.
+and commercial licensing options. Third-party dependencies remain subject to
+their respective licenses.
