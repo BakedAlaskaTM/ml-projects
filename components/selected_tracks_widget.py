@@ -1,11 +1,11 @@
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame, QScrollArea
 )
 
 class SelectedTracksWidget(QFrame):
-    item_removed_signal = pyqtSignal(str, int)  # Emits uid, track_id when red 'X' clicked
+    item_removed_signal = Signal(str, int)  # Emits uid, track_id when red 'X' clicked
 
     def __init__(self):
         super().__init__()

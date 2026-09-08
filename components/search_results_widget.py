@@ -1,5 +1,5 @@
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QFrame, QTableWidget,
     QTableWidgetItem, QHeaderView, QAbstractItemView, 
@@ -7,10 +7,10 @@ from PyQt6.QtWidgets import (
 from libs.utils import format_time
 
 class SearchResultsWidget(QFrame):
-    search_triggered = pyqtSignal(str)
-    checkbox_toggled = pyqtSignal(str, bool)  # uid, is_checked
-    page_changed = pyqtSignal(int) # +1 for next page, -1 for prev page
-    cell_selected = pyqtSignal(dict)
+    search_triggered = Signal(str)
+    checkbox_toggled = Signal(str, bool)  # uid, is_checked
+    page_changed = Signal(int) # +1 for next page, -1 for prev page
+    cell_selected = Signal(dict)
 
     def __init__(self):
         super().__init__()

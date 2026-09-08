@@ -1,9 +1,9 @@
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QPushButton)
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (QWidget, QHBoxLayout, QPushButton)
 
 class BottomActionsWidget(QWidget):
-    save_button_pressed = pyqtSignal()
-    export_button_pressed = pyqtSignal()
+    save_button_pressed = Signal()
+    export_button_pressed = Signal()
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout(self)

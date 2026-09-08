@@ -1,6 +1,6 @@
-from PyQt6.QtCore import Qt, pyqtSignal, QDate
-from PyQt6.QtGui import QColor, QTextCharFormat
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QDate
+from PySide6.QtGui import QColor, QTextCharFormat
+from PySide6.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QFrame, QLabel, QDateEdit, QPlainTextEdit,
     QCalendarWidget

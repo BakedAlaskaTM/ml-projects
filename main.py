@@ -1,5 +1,5 @@
 import sys
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QStackedWidget, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog
 )
 from supabase import create_client, Client

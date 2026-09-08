@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from PyQt6.QtCore import QDate, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QDate, QSize, Qt, Signal
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -16,8 +16,8 @@ from PyQt6.QtWidgets import (
 class ProjectCardWidget(QFrame):
     """Compact summary card for a project on the dashboard."""
 
-    edit_requested = pyqtSignal(str)
-    delete_requested = pyqtSignal(str)
+    edit_requested = Signal(str)
+    delete_requested = Signal(str)
 
     def __init__(self, project: dict | None = None):
         super().__init__()

@@ -1,5 +1,5 @@
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QStackedWidget
 )
 from supabase import Client
@@ -27,7 +27,7 @@ MAX_CACHE_PAGES = 1000 // RESULT_COUNT # RESULT_COUNT * CACHE_PAGES <= 1000
 
 
 class ProjectEditorView(QWidget):
-    back_to_dashboard = pyqtSignal()
+    back_to_dashboard = Signal()
     def __init__(self, client: Client, session: requests.Session):
         super().__init__()
 

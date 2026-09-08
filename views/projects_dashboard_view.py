@@ -6,8 +6,8 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Signal, Qt
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QPushButton, QGridLayout, QLabel, QMessageBox
 )
 from supabase import create_client, Client
@@ -32,7 +32,7 @@ GRID_COLS = 5
 GRID_ROWS = 2
 
 class ProjectsDashboardView(QWidget):
-    project_selected = pyqtSignal(str) # Emits project slug
+    project_selected = Signal(str) # Emits project slug
     def __init__(self, client: Client):
         super().__init__()
         self.client = client

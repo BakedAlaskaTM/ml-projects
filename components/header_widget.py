@@ -1,9 +1,9 @@
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QPushButton, QLineEdit, QComboBox, QFrame, QLabel)
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (QWidget, QHBoxLayout, QPushButton, QLineEdit, QComboBox, QFrame, QLabel)
 from libs.utils import ProjectStatus
 
 class HeaderWidget(QWidget):
-    edit_focus_changed = pyqtSignal(str) # TRACKS or PROJECT
+    edit_focus_changed = Signal(str) # TRACKS or PROJECT
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout(self)
