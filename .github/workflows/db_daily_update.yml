@@ -1,0 +1,40 @@
+name: DB Daily Update
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    # Runs at 00:00 UTC every single day
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    # Allows you to manually click a "Run workflow" button in GitHub
+
+jobs:
+  scrape-and-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Check out your code repository
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    # 2. Set up Python on the runner
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip' # Speeds up subsequent runs by caching dependencies
+
+    # 3. Install your dependencies
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # 5. Run the script with injected GitHub Secrets
+    - name: Run Update Script
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      run: python update_db.py
