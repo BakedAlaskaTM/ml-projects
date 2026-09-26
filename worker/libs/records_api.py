@@ -8,7 +8,7 @@ import random
 def fetch_tmx(track: dict, session: Session):
     response = session.get(f"https://tmnf.exchange/api/replays?trackId={track['tmx_id']}&count=10&fields=User.UserId%2CUser.Name%2CReplayTime%2CReplayAt%2CPosition")
     if response.status_code != 200:
-        print(f"Error on map {track["name"]}")
+        print(f"Error on map {track['name']}")
         return {"track": track, "content": None}
     content = response.json()
     return {"track": track, "content": content}
