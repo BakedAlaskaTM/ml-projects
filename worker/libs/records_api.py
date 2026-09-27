@@ -49,7 +49,7 @@ def update_dedi_recs(session: Session, track_info: list[dict]):
         try:
             response = session.get(f"http://dedimania.net:8000/MAP?uid={track['uid']}", timeout=(5, 10))
             if response.status_code != 200:
-                print(f"Error on map {track["name"]}")
+                print(f"Error on map {track['name']}")
                 continue
         except (exceptions.ReadTimeout, exceptions.ConnectTimeout):
             print(f"Timeout: Dedimania API took too long to respond for map {track['uid']}")
